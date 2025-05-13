@@ -1,23 +1,24 @@
+from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 from PIL import Image
-import pytesseract
-import re
+import torch
 
-# Set the path to Tesseract executable (update based on your installation)
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'  # Windows example
+# Load the handwritten image
+image = Image.open("1.jpg").convert("RGB")
 
-# Load the image
-image = Image.open("data-4.jpg")
+# Load processor and model from Hugging Face
+processor = TrOCRProcessor.from_pretrained("microsoft/trocr-base-handwritten")
+model = VisionEncoderDecoderModel.from_pretrained("microsoft/trocr-base-handwritten")
 
-# Extract text using OCR
-text = pytesseract.image_to_string(image)
+# Preprocess the image
+pixel_values = processor(images=image, return_tensors="pt").pixel_values
 
-# Process the extracted text to find medicine names
-medicine_names = []
-for line in text.split('\n'):
-    # Match lines with time followed by medicine names (e.g., "7:15. Neebion")
-    match = re.search(r'\d+:\d+\.\s+([A-Za-zèé]+)', line)
-    if match:
-        name = match.group(1).strip()
-        medicine_names.append(name)
+# Generate predicted text
+with torch.no_grad():
+    generated_ids = model.generate(pixel_values)
 
-print("Extracted Medicine Names:", medicine_names)
+# Decode to text
+text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+
+# Output result
+print("\n✅ Detected Handwritten Text:\n")
+print(text)
